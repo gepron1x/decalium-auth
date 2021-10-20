@@ -1,5 +1,3 @@
-package org.gepron1x.auth.api;
-
 import net.kyori.adventure.util.Buildable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
