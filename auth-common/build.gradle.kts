@@ -16,6 +16,7 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":auth-api"))
     compileOnly("net.kyori:adventure-api:4.9.2")
     implementation ("net.kyori:adventure-text-minimessage:4.2.0-SNAPSHOT") {
         exclude(group = "net.kyori", module = "adventure-api")

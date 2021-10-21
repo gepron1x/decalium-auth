@@ -1,6 +1,6 @@
 package org.gepron1x.auth.storage;
 
-import org.gepron1x.auth.AuthProfile;
+import me.gepron1x.auth.api.AuthProfile;
 
 import java.net.InetAddress;
 import java.time.Instant;

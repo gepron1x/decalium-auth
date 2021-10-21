@@ -1,6 +1,7 @@
 plugins {
     java
     id("com.github.johnrengelman.shadow") version "7.0.0"
+    `java-library`
 }
 
 group = "org.gepron1x"
@@ -16,9 +17,9 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jetbrains:annotations:20.1.0")
+    implementation("org.jetbrains:annotations:22.0.0")
     compileOnly("net.kyori:adventure-api:4.9.2")
-    implementation("com.google.guava:guava:31.0.1-jre")
+    compileOnlyApi("com.google.guava:guava:31.0.1-jre")
 }
 
 tasks {

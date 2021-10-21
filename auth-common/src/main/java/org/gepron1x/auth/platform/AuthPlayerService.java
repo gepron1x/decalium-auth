@@ -1,6 +1,6 @@
 package org.gepron1x.auth.platform;
 
-import org.gepron1x.auth.AuthProfile;
+import me.gepron1x.auth.api.AuthProfile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -12,6 +12,6 @@ public interface AuthPlayerService {
     @Nullable AuthPlayer getByName(@NotNull String name);
     @Nullable AuthPlayer getByUuid(@NotNull UUID uuid);
     @Nullable default AuthPlayer getByProfile(@NotNull AuthProfile profile) {
-        return getByUuid(profile.getUuid());
+        return getByUuid(profile.getUniqueId());
     }
 }

@@ -1,31 +1,35 @@
 package org.gepron1x.auth.storage;
 
-import org.gepron1x.auth.AuthProfile;
+import me.gepron1x.auth.api.AuthProfile;
+import me.gepron1x.auth.api.ProfileManager;
+import org.gepron1x.auth.DefaultAuthProfile;
 import org.gepron1x.auth.storage.mapper.Mappers;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 import org.jdbi.v3.core.statement.PreparedBatch;
 
 import java.net.InetAddress;
-import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class JdbcProfileStorage implements ProfileStorage {
 
     private static final String UUID = "uuid", PASSWORD = "password", ADDRESS = "address", TIMESTAMP = "timestamp";
-    private static final RowMapper<AuthProfile.Builder> PROFILE_MAPPER = (rs, ctx) ->
-            AuthProfile.builder()
-                    .uuid(Mappers.UUID.map(rs, UUID, ctx))
-                    .password(rs.getString(PASSWORD));
+    private final RowMapper<AuthProfile.Builder> profileMapper;
 
+    private final ProfileManager profileManager;
     private final Jdbi jdbi;
 
-    public JdbcProfileStorage(Jdbi jdbi) {
+    public JdbcProfileStorage(ProfileManager profileManager, Jdbi jdbi) {
+        this.profileManager = profileManager;
+        this.profileMapper = (rs, ctx) -> this.profileManager.profileBuilder().uuid(Mappers.UUID.map(rs, UUID, ctx)).password(rs.getString(PASSWORD));
         this.jdbi = jdbi;
     }
+
     @Override
     public void initialize() {
         jdbi.useHandle(handle -> {
@@ -43,7 +47,7 @@ public class JdbcProfileStorage implements ProfileStorage {
 
         return jdbi.withHandle(handle -> {
             AuthProfile.Builder builder = handle.createQuery("SELECT * FROM profiles WHERE `uuid`=:uuid")
-                    .bind(UUID, uuid).map(PROFILE_MAPPER).first();
+                    .bind(UUID, uuid).map(profileMapper).first();
             Map<InetAddress, Instant> loggedIn = handle.createQuery("SELECT * FROM logged_addresses WHERE `uuid`=:uuid")
                     .bind(UUID, uuid)
                     .map((rs, ctx) -> Map.entry(Mappers.INET_ADDRESS.map(rs, ADDRESS, ctx), Mappers.INSTANT.map(rs, TIMESTAMP, ctx)))
@@ -53,7 +57,7 @@ public class JdbcProfileStorage implements ProfileStorage {
     }
 
     @Override
-    public AuthProfile loadProfile(String username) {
+    public DefaultAuthProfile loadProfile(String username) {
         return null;
     }
 
@@ -68,7 +72,7 @@ public class JdbcProfileStorage implements ProfileStorage {
                             )
                     ).collect(Collectors.toList());
             Map<UUID, AuthProfile.Builder> map = handle.createQuery("SELECT * FROM profiles")
-                    .map(PROFILE_MAPPER)
+                    .map(profileMapper)
                     .collect(Collectors.toMap(AuthProfile.Builder::uuid, Function.identity()));
             for(LoggedInAddressesRow row : rows) {
                 map.get(row.uuid).addLoggedInAddress(row.address, row.instant);
@@ -79,7 +83,7 @@ public class JdbcProfileStorage implements ProfileStorage {
 
     @Override
     public void saveProfile(AuthProfile profile) {
-        final UUID uuid = profile.getUuid();
+        final UUID uuid = profile.getUniqueId();
         jdbi.useHandle(handle -> {
             handle.createUpdate("INSERT INTO `profiles` (`uuid`, `password`) VALUES (:uuid, :password) ON DUPLICATE KEY UPDATE `password`=:password")
                     .bind(UUID, uuid)
@@ -102,7 +106,7 @@ public class JdbcProfileStorage implements ProfileStorage {
     public void setPassword(AuthProfile profile, String hashedPassword) {
         jdbi.useHandle(handle -> {
             handle.createUpdate("UPDATE profiles SET `password`=:password WHERE `uuid`=:uuid")
-                    .bind(UUID, profile.getUuid())
+                    .bind(UUID, profile.getUniqueId())
                     .bind(PASSWORD, hashedPassword)
                     .execute();
         });
@@ -112,7 +116,7 @@ public class JdbcProfileStorage implements ProfileStorage {
     public void addLoggedInAddress(AuthProfile profile, InetAddress address, Instant instant) {
         jdbi.useHandle(handle -> {
             handle.createUpdate("INSERT INTO logged_addresses (`uuid`, `address`, `timestamp` VALUES(:uuid, :address, :timestamp) ON DUPLICATE KEY UPDATE `timestamp`=:timestamp")
-                    .bind(UUID, profile.getUuid())
+                    .bind(UUID, profile.getUniqueId())
                     .bind(ADDRESS, address)
                     .bind(TIMESTAMP, instant)
                     .execute();
@@ -123,7 +127,7 @@ public class JdbcProfileStorage implements ProfileStorage {
     public void removeLoggedInAddress(AuthProfile profile, InetAddress address) {
         jdbi.useHandle(handle -> {
             handle.createUpdate("DELETE FROM logged_addresses WHERE `uuid`=:uuid AND `address`=:address")
-                    .bind(UUID, profile.getUuid())
+                    .bind(UUID, profile.getUniqueId())
                     .bind(ADDRESS, address).execute();
         });
     }
